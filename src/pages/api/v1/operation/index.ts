@@ -2,16 +2,12 @@ import OperationService, { IOperationResult, OperationType } from '@/lib/service
 import session from '@/middlewares/session';
 import { NextApiRequest, NextApiResponse } from 'next';
 
-const handler = async (req: NextApiRequest & { userId?: number }, res: NextApiResponse) => {
+const handler = async (req: NextApiRequest & { userId: number }, res: NextApiResponse) => {
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method not allowed' });
     }
 
     const { userId } = req
-    if (!userId) {
-        return res.status(400).json({ message: "userId is required" });
-    }
-
     const { operand1, operand2, operation } = req.body;
 
     // Validations
@@ -55,13 +51,14 @@ const handler = async (req: NextApiRequest & { userId?: number }, res: NextApiRe
             return res.status(400).json({ message: "Invalid Operation Type" });
         }
 
-        if ('error' in operationResult) {
+        if (operationResult.error) {
             return res.status(400).json({ message: operationResult.error });
         }
 
         return res.status(200).json(operationResult.data);
-    } catch (err: any) {
-        return res.status(500).json({ message: `Operation Server Error: ${err.message}`});
+    } catch (err) {
+        console.error("An error occurred: ", err);
+        return res.status(500).json({ message: 'Unable to execute the operation'});
     }
 };
 

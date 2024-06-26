@@ -1,5 +1,5 @@
 import { hash } from 'bcrypt';
-import pool from '../db';
+import { query } from '../db';
 import UserModel, { User } from './user';
 
 // Mock bcrypt and pool
@@ -24,11 +24,11 @@ describe('UserModel', () => {
         password: 'hashedpassword',
         user_balance: 100,
       };
-      (pool.query as jest.Mock).mockResolvedValueOnce({ rows: [mockUser] });
+      (query as jest.Mock).mockResolvedValueOnce([mockUser]);
 
       const user = await UserModel.getById(1);
       expect(user).toEqual(mockUser);
-      expect(pool.query).toHaveBeenCalledWith(
+      expect(query).toHaveBeenCalledWith(
         "SELECT id, username, status, user_balance FROM users WHERE id = $1 AND status = 'active'",
         [1]
       );
@@ -44,11 +44,11 @@ describe('UserModel', () => {
         password: 'hashedpassword',
         user_balance: 100,
       };
-      (pool.query as jest.Mock).mockResolvedValueOnce({ rows: [mockUser] });
+      (query as jest.Mock).mockResolvedValueOnce([mockUser]);
 
       const user = await UserModel.getByUsername('testuser');
       expect(user).toEqual(mockUser);
-      expect(pool.query).toHaveBeenCalledWith(
+      expect(query).toHaveBeenCalledWith(
         "SELECT id, username, password, status, user_balance FROM users WHERE username = $1 AND status = 'active'",
         ['testuser']
       );
@@ -60,12 +60,12 @@ describe('UserModel', () => {
       const mockUser = { id: 1, username: 'testuser' };
       const mockHashedPassword = 'hashedpassword';
       (hash as jest.Mock).mockResolvedValueOnce(mockHashedPassword);
-      (pool.query as jest.Mock).mockResolvedValueOnce({ rows: [mockUser] });
+      (query as jest.Mock).mockResolvedValueOnce([mockUser]);
 
       const user = await UserModel.createUser('testuser', 'password');
       expect(user).toEqual(mockUser);
       expect(hash).toHaveBeenCalledWith('password', 10);
-      expect(pool.query).toHaveBeenCalledWith(
+      expect(query).toHaveBeenCalledWith(
         'INSERT INTO users (username, password, status, user_balance) VALUES ($1, $2, $3, $4) RETURNING id, username',
         ['testuser', mockHashedPassword, 'active', 10]
       );
@@ -74,10 +74,10 @@ describe('UserModel', () => {
 
   describe('updateBalance', () => {
     it('should update the user balance', async () => {
-      (pool.query as jest.Mock).mockResolvedValueOnce({});
+      (query as jest.Mock).mockResolvedValueOnce({});
 
       await UserModel.updateBalance(200, 1);
-      expect(pool.query).toHaveBeenCalledWith(
+      expect(query).toHaveBeenCalledWith(
         'UPDATE users SET user_balance = $1 WHERE id = $2',
         [200, 1]
       );

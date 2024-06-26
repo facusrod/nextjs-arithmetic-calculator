@@ -66,7 +66,7 @@ describe('OperationAPI', () => {
     const result = await OperationAPI.executeOperation(OperationType.ADDITION, 5, 5);
 
     expect(result).toEqual({ result: mockResult, user_balance: mockUserBalance });
-    expect(axiosInstance.post).toHaveBeenCalledWith('/operation/', {
+    expect(axiosInstance.post).toHaveBeenCalledWith('/operation', {
       operation: OperationType.ADDITION,
       operand1: 5,
       operand2: 5

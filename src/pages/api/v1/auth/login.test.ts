@@ -1,4 +1,3 @@
-// authHandler.test.ts
 import { NextApiRequest, NextApiResponse } from 'next';
 import handler from './login';
 import UserService from '@/lib/service/user';
@@ -85,6 +84,6 @@ describe('Auth Handler', () => {
     await handler(req, res);
 
     expect(res._getStatusCode()).toBe(500);
-    expect(res._getJSONData()).toEqual({ message: 'Unexpected Auth Error: Test Error' });
+    expect(res._getJSONData()).toEqual({ message: 'Unable to login user' });
   });
 });

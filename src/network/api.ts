@@ -17,7 +17,7 @@ export const UserAPI = {
         password
     });
     return response.data;
-  }
+  },
 }
 
 interface ApiResponse {
@@ -33,7 +33,7 @@ export const OperationAPI = {
   },
   executeOperation: async (operation: OperationType, operand1: number | null, operand2: number | null): Promise<{ result: number, user_balance: number }> => {
     const response = await axiosInstance
-    .post('/operation/', {
+    .post('/operation', {
       operation,
       operand1, 
       operand2
@@ -43,5 +43,9 @@ export const OperationAPI = {
   },
   delete: async (operationId: number): Promise<void> => {
     await axiosInstance.delete(`/operation/${operationId}`)
-  }  
+  },
+  fixUserBalance: async (): Promise<number> => {
+    const { data } = await axiosInstance.post('/operation/fixbalance')
+    return data
+  }
 };

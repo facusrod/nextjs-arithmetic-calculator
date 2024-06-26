@@ -1,4 +1,4 @@
-import pool from '../db';
+import { query as queryDb } from '../db';
 
 export interface Operation {
     id: number;
@@ -9,8 +9,8 @@ export interface Operation {
 class OperationModel {
     static async findByType(type: string): Promise<Operation> {
         const query = 'SELECT id, type, cost FROM operation WHERE type = $1';
-        const results = await pool.query(query, [type]);
-        return results.rows[0]
+        const results = await queryDb<Operation>(query, [type]);
+        return results[0]
     }
 }
 

@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     res.setHeader('Authorization', `Bearer ${token}`);
     return res.status(200).json({ token });
-  } catch (err: any) {
-    return res.status(500).json({ message: `Unexpected Auth Error: ${err.message}`});
+  } catch (err) {
+    return res.status(500).json({ message: 'Unable to login user'});
   }
 }

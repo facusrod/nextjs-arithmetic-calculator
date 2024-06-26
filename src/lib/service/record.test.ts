@@ -18,8 +18,8 @@ describe('RecordService', () => {
       const page = 1;
       const pageSize = 10;
       const mockRecords: Record[] = [
-        { id: 1, operation_id: 1, user_id: 1, amount: 100, operation_response: 'Success', user_balance: 500, date: '2024-06-25', deleted: false },
-        { id: 2, operation_id: 2, user_id: 1, amount: 50, operation_response: 'Success', user_balance: 450, date: '2024-06-24', deleted: false },
+        { id: 1, operation_id: 1, user_id: 1, amount: 100, operation_response: '20', user_balance: 500, date: '2024-06-25', deleted: false },
+        { id: 2, operation_id: 2, user_id: 1, amount: 50, operation_response: '20', user_balance: 450, date: '2024-06-24', deleted: false },
       ];
       const totalCount = 2;
 

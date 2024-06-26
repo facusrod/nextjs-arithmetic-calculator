@@ -1,92 +1,122 @@
 import pool from '../db';
-import RecordModel from './record';
-import UserModel from './user';
+import RecordModel, { TransactionError } from './record';
+import { User } from './user';
 
-jest.mock('../db');
-jest.mock('./user');
+// Mock the pool.query method
+jest.mock('../db', () => ({
+  query: jest.fn(),
+}));
 
-describe('RecordModel', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
+describe('RecordModel.insert', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should insert a new record and update user balance', async () => {
+    // Arrange
+    const mockUser = {
+      id: 1,
+      username: 'testuser',
+      status: 'active',
+      user_balance: 100,
+      password: 'password'
+    };
+
+    (pool.query as jest.Mock).mockImplementation((query: string, values: any[]) => {
+      if (query.includes('SELECT id, username, status, user_balance FROM users')) {
+        return { rows: [mockUser] };
+      }
+      if (query.includes('UPDATE users SET user_balance')) {
+        return {};
+      }
+      if (query.includes('INSERT INTO record')) {
+        return {};
+      }
+      if (query.includes('BEGIN') || query.includes('COMMIT')) {
+        return {};
+      }
     });
 
-    describe('insert', () => {
-        it('should insert a new record and update user balance', async () => {
-            const mockQuery = jest.fn();
-            pool.query = mockQuery;
+    // Act
+    const updatedBalance = await RecordModel.insert(1, 1, 50, 'operation result');
 
-            const operationId = 1;
-            const userId = 1;
-            const amount = 100;
-            const updatedBalance = 900;
-            const result = 'result';
+    // Assert
+    expect(pool.query).toHaveBeenCalledTimes(5); // BEGIN, SELECT, UPDATE, INSERT, COMMIT
+    expect(updatedBalance).toBe(50);
+  });
 
-            mockQuery.mockResolvedValueOnce({ rows: [] });
-            UserModel.updateBalance = jest.fn().mockResolvedValue(true);
+  it('should throw TransactionError if user balance is 0', async () => {
+    // Arrange
+    const mockUser: User = {
+      id: 1,
+      username: 'testuser',
+      status: 'active',
+      user_balance: 0,
+      password: 'password'
+    };
 
-            await RecordModel.insert(operationId, userId, amount, updatedBalance, result);
-
-            expect(pool.query).toHaveBeenNthCalledWith(1, 'BEGIN');
-            expect(UserModel.updateBalance).toHaveBeenCalledWith(updatedBalance, userId);
-            expect(pool.query).toHaveBeenNthCalledWith(2, expect.stringContaining('INSERT INTO record'), [operationId, userId, amount, updatedBalance, result, expect.any(String)]);
-            expect(pool.query).toHaveBeenNthCalledWith(3, 'COMMIT');
-        });
-
-        it('should rollback transaction if there is an error', async () => {
-            const mockQuery = jest.fn();
-            pool.query = mockQuery;
-
-            const operationId = 1;
-            const userId = 1;
-            const amount = 100;
-            const updatedBalance = 900;
-            const result = 'result';
-
-            mockQuery.mockRejectedValueOnce(new Error('Some error'));
-
-            await expect(RecordModel.insert(operationId, userId, amount, updatedBalance, result)).rejects.toThrow('Some error');
-
-            expect(pool.query).toHaveBeenNthCalledWith(1, 'BEGIN');
-            expect(pool.query).toHaveBeenNthCalledWith(2, 'ROLLBACK');
-        });
+    (pool.query as jest.Mock).mockImplementation((query: string, values: any[]) => {
+      if (query.includes('SELECT id, username, status, user_balance FROM users')) {
+        return { rows: [mockUser] };
+      }
+      if (query.includes('BEGIN') || query.includes('ROLLBACK')) {
+        return {};
+      }
     });
 
-    describe('getAllByUserId', () => {
-        it('should return records and total count for a user', async () => {
-            const mockQuery = jest.fn();
-            pool.query = mockQuery;
+    // Act & Assert
+    await expect(RecordModel.insert(1, 1, 50, 'operation result')).rejects.toThrow(TransactionError);
+    expect(pool.query).toHaveBeenCalledTimes(3); // BEGIN, SELECT, ROLLBACK
+  });
 
-            const userId = 1;
-            const page = 1;
-            const pageSize = 10;
-            const offset = page * pageSize;
+  it('should throw TransactionError if user balance is less than the amount', async () => {
+    // Arrange
+    const mockUser: User = {
+      id: 1,
+      username: 'testuser',
+      status: 'active',
+      user_balance: 30,
+      password: 'password'
+    };
 
-            const countResult = { rows: [{ total: '20' }] };
-            const recordsResult = { rows: [{ id: 1, amount: 100, operation_response: 'response', user_balance: 900, date: '2021-01-01', type: 'addition' }] };
-
-            mockQuery.mockResolvedValueOnce(countResult);
-            mockQuery.mockResolvedValueOnce(recordsResult);
-
-            const [records, totalRows] = await RecordModel.getAllByUserId(userId, page, pageSize);
-
-            expect(records).toEqual(recordsResult.rows);
-            expect(totalRows).toBe(20);
-
-            expect(pool.query).toHaveBeenNthCalledWith(1, expect.stringContaining('SELECT COUNT(*) AS total'), [userId]);
-            expect(pool.query).toHaveBeenNthCalledWith(2, expect.stringContaining('SELECT r.id, r.amount, r.operation_response, r.user_balance, r.date, o.type'), [userId, pageSize, offset]);
-        });
+    (pool.query as jest.Mock).mockImplementation((query: string, values: any[]) => {
+      if (query.includes('SELECT id, username, status, user_balance FROM users')) {
+        return { rows: [mockUser] };
+      }
+      if (query.includes('BEGIN') || query.includes('ROLLBACK')) {
+        return {};
+      }
     });
 
-    describe('delete', () => {
-        it('should mark a record as deleted', async () => {
-            const mockQuery = jest.fn();
-            pool.query = mockQuery;
+    // Act & Assert
+    await expect(RecordModel.insert(1, 1, 50, 'operation result')).rejects.toThrow(TransactionError);
+    expect(pool.query).toHaveBeenCalledTimes(3); // BEGIN, SELECT, ROLLBACK
+  });
 
-            const userId = 1;
-            const recordId = 1;
-            const dateNow = new Date().toISOString();
-            await RecordModel.delete(userId, recordId);
-            expect(pool.query).toHaveBeenCalledWith('UPDATE record SET deleted = $1 WHERE user_id = $2 AND id = $3', [dateNow, userId, recordId]);
-        });
+  it('should rollback transaction if an error occurs', async () => {
+    // Arrange
+    const mockUser: User = {
+      id: 1,
+      username: 'testuser',
+      status: 'active',
+      user_balance: 100,
+      password: 'password'
+    };
+
+    (pool.query as jest.Mock).mockImplementation((query: string, values: any[]) => {
+      if (query.includes('SELECT id, username, status, user_balance FROM users')) {
+        return { rows: [mockUser] };
+      }
+      if (query.includes('UPDATE users SET user_balance')) {
+        throw new Error('Update balance error');
+      }
+      if (query.includes('BEGIN') || query.includes('ROLLBACK')) {
+        return {};
+      }
     });
+
+    // Act & Assert
+    await expect(RecordModel.insert(1, 1, 50, 'operation result')).rejects.toThrow('Update balance error');
+    expect(pool.query).toHaveBeenCalledTimes(4); // BEGIN, SELECT, UPDATE, ROLLBACK
+  });
 });

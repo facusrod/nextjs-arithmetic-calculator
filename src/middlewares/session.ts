@@ -7,10 +7,10 @@ export interface DecodedToken {
     exp: number;
 }
 
-type Handler = (req: NextApiRequest & { userId?: number }, res: NextApiResponse) => Promise<void> | void;
+type Handler = (req: NextApiRequest & { userId: number }, res: NextApiResponse) => Promise<void> | void;
 
 export default function session(handler: Handler) {
-    return async (req: NextApiRequest & { userId?: number }, res: NextApiResponse) => {
+    return async (req: NextApiRequest & { userId: number }, res: NextApiResponse) => {
         const authHeader = req.headers.authorization;
         const token = authHeader?.split(' ')[1];
 

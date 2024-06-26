@@ -1,13 +1,16 @@
-import React, { useState } from "react";
-import { OperationAPI } from "../network/api";
+import React, { useEffect, useState } from "react";
+import { OperationAPI } from "@/network/api";
 import { OperationType } from "@/network/types";
+import { NextPage } from "next";
+import router from "next/router";
+import { useAuth } from "@/context/authcontext";
 
 const EMPTY_VALUE = "";
 
-const Calculator: React.FC = () => {
+const Calculator: NextPage = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const [balance, setBalance] = useState<string>(EMPTY_VALUE);
+  const [balance, setBalance] = useState<number>(0);
   const [firstOperand, setFirstOperand] = useState<string>(EMPTY_VALUE);
   const [secondOperand, setSecondOperand] = useState<string>(EMPTY_VALUE);
 
@@ -15,7 +18,16 @@ const Calculator: React.FC = () => {
   const [currentOperation, setCurrentOperation] = useState<string>(EMPTY_VALUE);
   const [errorMessage, setErrorMessage] = useState<string>(EMPTY_VALUE);
 
-  const getOperandValue = (): any[] => {
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+  }, [user])
+
+  const getOperandValue = (): [boolean, string] => {
     const useFirstOperand = currentOperation === EMPTY_VALUE;
     let operandValue = useFirstOperand ? firstOperand : secondOperand;
     operandValue = operandValue === EMPTY_VALUE ? "0" : operandValue;
@@ -120,14 +132,16 @@ const Calculator: React.FC = () => {
       operation,
       firstOperandValue,
       secondOperandValue
-    ).then((data) => {
-        cleanValues(data.result.toString());
-        setBalance(data.user_balance.toString());
-        setIsLoading(false);
-    }).catch(err => {
-        setErrorMessage(err.response.data.message);
-        setIsLoading(false);
-    });
+    )
+    .then((data) => {
+      cleanValues(data.result.toString());
+      setBalance(data.user_balance);
+    })
+    .catch(err => {
+      cleanValues(EMPTY_VALUE);
+      setErrorMessage(err.response.data.message);
+    })
+    .finally(() => setIsLoading(false));;
   }
 
   const executeEquals = () => {
@@ -138,91 +152,138 @@ const Calculator: React.FC = () => {
     executeRemoteOperation(parseFloat(firstOperand), parseFloat(secondOperand), currentOperation);
   }
 
+  const handleFixBalance = () => {
+    setIsLoading(true);
+    OperationAPI.fixUserBalance()
+    .then((data) => {
+      cleanValues(EMPTY_VALUE);
+      setBalance(data);
+    })
+    .catch(err => {
+      setErrorMessage(err.response.data.message);
+    })
+    .finally(()=> setIsLoading(false));
+  }
+
+  const toggleSign = () => {
+    let [useFirstOperand, operandValue] = getOperandValue();
+    let value = (parseFloat(operandValue) * -1).toString();
+
+    if (useFirstOperand) {
+      setFirstOperand(value);
+      setCurrentText(value);
+    } else {
+      setSecondOperand(value);
+      setCurrentText(value);
+    }
+  }
+
   return (
-    <div className="calculator p-4 bg-black rounded-lg shadow-lg max-w-md mx-auto">
-      {parseInt(balance) >= 0 && (
+    <div className="relative max-w-md mx-auto">
+      <div className="calculator p-4 bg-black rounded-lg shadow-lg">
+        {balance > 0 && (
+          <div className="mb-3">
+            <label className="block text-left text-white">CURRENT BALANCE: {balance}</label>
+          </div>
+        )}
+        {errorMessage && (
+          <div className="mb-3">
+            <div className="bg-red-500 text-white p-3 rounded">{errorMessage}</div>
+          </div>
+        )}
         <div className="mb-3">
-          <label className="block text-left text-white">CURRENT BALANCE: {balance}</label>
+          <input
+            className="w-full p-4 text-right bg-gray text-white rounded text-2xl"
+            placeholder={isLoading ? 'Processing operation...' : currentText}
+            disabled
+          />
         </div>
-      )}
-      {errorMessage && (
-        <div className="mb-3">
-          <div className="bg-red-500 text-white p-3 rounded">{errorMessage}</div>
+        <div className="grid grid-cols-4 gap-3 mb-3">
+          <div className="col-span-3 grid grid-cols-3 gap-3">
+            <button
+              key="clear"
+              className="bg-red-500 text-white p-4 rounded-full hover:bg-red-400 text-xl"
+              onClick={() => cleanValues(EMPTY_VALUE)}
+            >
+              AC
+            </button>
+            <button
+              key="+/-"
+              className="bg-gray-500 text-white p-4 rounded-full hover:bg-gray-400 text-xl"
+              onClick={() => toggleSign()}
+            >
+              +/-
+            </button>
+            <button
+              key="√"
+              className="bg-gray-500 text-white p-4 rounded-full hover:bg-gray-400 text-xl"
+              onClick={() => addOperation("√")}
+            >
+              √
+            </button>
+            {[7, 8, 9, 4, 5, 6, 1, 2, 3].map((num) => (
+              <button
+                key={num}
+                className="bg-gray-800 text-white p-4 rounded-full hover:bg-gray-700 text-xl"
+                onClick={() => addNumber(num)}
+              >
+                {num}
+              </button>
+            ))}
+            <button
+              key="R"
+              className="bg-purple-500 text-white p-4 rounded-full hover:bg-purple-400 text-xl"
+              onClick={() => addOperation("R")}
+              disabled={isLoading}
+            >
+              R
+            </button>
+            <button
+              key="0"
+              className="bg-gray-800 text-white p-4 rounded-full hover:bg-gray-700 text-xl"
+              onClick={() => addNumber(0)}
+            >
+              0
+            </button>
+            <button
+              key="dot"
+              className="bg-gray-800 text-white p-4 rounded-full hover:bg-gray-700 text-xl"
+              onClick={() => addDot()}
+            >
+              .
+            </button>
+          </div>
+          <div className="grid grid-rows-3 gap-3">
+            {["/", "*", "-", "+"].map((op) => (
+              <button
+                key={op}
+                className="bg-orange-500 text-white p-4 rounded-full hover:bg-orange-400 text-xl"
+                onClick={() => addOperation(op)}
+              >
+                {op}
+              </button>
+            ))}
+            <button
+              key="equals"
+              className="bg-green-500 text-white p-4 rounded-full hover:bg-green-400 text-xl row-span-2"
+              onClick={() => executeEquals()}
+              disabled={isLoading}
+            >
+              =
+            </button>
+          </div>
         </div>
-      )}
-      <div className="mb-3">
-        <input
-          className="w-full p-4 text-right bg-gray text-white rounded text-2xl"
-          placeholder={isLoading ? 'Processing operation...' : currentText}
-          disabled
-        />
-      </div>
-      <div className="grid grid-cols-4 gap-2 mb-3">
-        {/* OPERATION SECTION */}
-        {["+", "-", "*", "/"].map((op) => (
-          <button
-            key={op}
-            className="bg-orange-500 text-white p-4 rounded-full hover:bg-orange-400 text-xl"
-            onClick={() => addOperation(op)}
-          >
-            {op}
-          </button>
-        ))}
-        <button
-          key="clear"
-          className="bg-red-500 text-white p-4 rounded-full hover:bg-red-400 text-xl"
-          onClick={() => cleanValues(EMPTY_VALUE)}
-        >
-          C
-        </button>
-        {/* NUMBERS SECTION */}
-        {[9, 8, 7, 6, 5, 4, 3, 2, 1].map((num) => (
-          <button
-            key={num}
-            className="bg-gray-800 text-white p-4 rounded-full hover:bg-gray-700 text-xl"
-            onClick={() => addNumber(num)}
-          >
-            {num}
-          </button>
-        ))}
-        <button
-          key="√"
-          className="bg-gray-800 text-white p-4 rounded-full hover:bg-gray-700 text-xl"
-          onClick={() => addOperation("√")}
-        >
-          √
-        </button>
-        <button
-          key="R"
-          className="bg-gray-800 text-white p-4 rounded-full hover:bg-gray-700 text-xl"
-          onClick={() => addOperation("R")}
-        >
-          R
-        </button>
-        <button
-          key="0"
-          className="bg-gray-800 text-white p-4 rounded-full hover:bg-gray-700 text-xl col-span-2"
-          onClick={() => addNumber(0)}
-        >
-          0
-        </button>
-        <button
-          key="dot"
-          className="bg-gray-800 text-white p-4 rounded-full hover:bg-gray-700 text-xl"
-          onClick={() => addDot()}
-        >
-          .
-        </button>
-        <button
-          key="equals"
-          className="bg-green-500 text-white p-4 rounded-full hover:bg-green-400 text-xl"
-          onClick={() => executeEquals()}
-        >
-          =
-        </button>
+        <div className="absolute bottom-0 right-2 text-sm text-gray-400 cursor-pointer hover:underline">
+          <a onClick={handleFixBalance}>
+            <span>Do you need or want to add more balance to your account?</span>
+          </a>
+        </div>
       </div>
     </div>
   );
 }
 
 export default Calculator;
+
+
+

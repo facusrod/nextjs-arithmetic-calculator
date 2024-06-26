@@ -1,4 +1,3 @@
-// __tests__/handler.test.ts
 import { NextApiRequest, NextApiResponse } from 'next';
 import handler from './signup';
 import UserService from '@/lib/service/user';
@@ -64,6 +63,6 @@ describe('handler', () => {
     await handler(req, res);
 
     expect(res.statusCode).toBe(500);
-    expect(res._getJSONData()).toEqual({ message: 'Unexpected Auth Error: Database error' });
+    expect(res._getJSONData()).toEqual({ message: 'Unable to signup user' });
   });
 });

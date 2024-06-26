@@ -1,8 +1,8 @@
 import axios from 'axios';
 import OperationModel from '../model/operation';
-import RecordModel from '../model/record';
+import RecordModel, { TransactionError } from '../model/record';
+import OperationService from './operation';
 import UserModel from '../model/user';
-import OperationService, { OperationType, IOperationResult } from './operation';
 
 jest.mock('axios');
 jest.mock('../model/operation');
@@ -10,186 +10,176 @@ jest.mock('../model/record');
 jest.mock('../model/user');
 
 describe('OperationService', () => {
-    const mockUser = { id: 1, user_balance: 100 };
-    const mockOperation = { id: 1, cost: 10, type: OperationType.ADDITION };
-    
     afterEach(() => {
         jest.clearAllMocks();
     });
 
-    describe('add', () => {
-        it('should add two numbers and update user balance', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue(mockUser);
+    it('should add two numbers and return the result with updated user balance', async () => {
+        const mockOperation = { id: 1, cost: 10 };
+        const userId = 1;
+        const operand1 = 5;
+        const operand2 = 3;
 
-            const result = await OperationService.add(1, 5, 3);
+        (OperationModel.findByType as jest.Mock).mockResolvedValueOnce(mockOperation);
+        (RecordModel.insert as jest.Mock).mockResolvedValueOnce(90);
 
-            expect(OperationModel.findByType).toHaveBeenCalledWith(OperationType.ADDITION);
-            expect(UserModel.getById).toHaveBeenCalledWith(1);
-            expect(RecordModel.insert).toHaveBeenCalledWith(1, 1, 10, 90, 8);
+        const result = await OperationService.add(userId, operand1, operand2);
 
-            expect(result).toEqual({
-                data: {
-                    result: 8,
-                    user_balance: 90
-                }
-            });
+        expect(result).toEqual({
+            data: {
+            result: 8,
+            user_balance: 90,
+            }
         });
+        expect(OperationModel.findByType).toHaveBeenCalledWith('ADDITION');
+        expect(RecordModel.insert).toHaveBeenCalledWith(mockOperation.id, userId, mockOperation.cost, 8);
+    });
 
-        it('should throw an error if user balance is insufficient', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue({ ...mockUser, user_balance: 5 });
-            const result = await OperationService.divide(1, 5, 3);
-            expect(result.error).toBe('Err. Operation cost: 10. Your balance: 5');
+    it('should return an error when the operation cost exceeds user balance', async () => {
+        const mockOperation = { id: 1, cost: 10 };
+        const userId = 1;
+        const operand1 = 5;
+        const operand2 = 3;
+
+        (OperationModel.findByType as jest.Mock).mockResolvedValueOnce(mockOperation);
+        (RecordModel.insert as jest.Mock).mockRejectedValueOnce(new TransactionError('Insufficient balance'));
+
+        const result = await OperationService.add(userId, operand1, operand2);
+        expect(result).toEqual({
+            error: '',
+        });
+        expect(OperationModel.findByType).toHaveBeenCalledWith('ADDITION');
+        expect(RecordModel.insert).toHaveBeenCalledWith(mockOperation.id, userId, mockOperation.cost, 8);
+    });
+
+    it('should subtract two numbers and return the result with updated user balance', async () => {
+        const mockOperation = { id: 1, cost: 10 };
+        const userId = 1;
+        const operand1 = 5;
+        const operand2 = 3;
+
+        (OperationModel.findByType as jest.Mock).mockResolvedValueOnce(mockOperation);
+        (RecordModel.insert as jest.Mock).mockResolvedValueOnce(90);
+
+        const result = await OperationService.substract(userId, operand1, operand2);
+
+        expect(result).toEqual({
+            data: {
+            result: 2,
+            user_balance: 90,
+            }
+        });
+        expect(OperationModel.findByType).toHaveBeenCalledWith('SUBSTRACTION');
+        expect(RecordModel.insert).toHaveBeenCalledWith(mockOperation.id, userId, mockOperation.cost, 2);
+    });
+
+    it('should multiply two numbers and return the result with updated user balance', async () => {
+        const mockOperation = { id: 1, cost: 10 };
+        const userId = 1;
+        const operand1 = 5;
+        const operand2 = 3;
+
+        (OperationModel.findByType as jest.Mock).mockResolvedValueOnce(mockOperation);
+        (RecordModel.insert as jest.Mock).mockResolvedValueOnce(90);
+
+        const result = await OperationService.multiply(userId, operand1, operand2);
+
+        expect(result).toEqual({
+            data: {
+            result: 15,
+            user_balance: 90,
+            }
+        });
+        expect(OperationModel.findByType).toHaveBeenCalledWith('MULTIPLICATION');
+        expect(RecordModel.insert).toHaveBeenCalledWith(mockOperation.id, userId, mockOperation.cost, 15);
+    });
+
+    it('should return an error when dividing by zero', async () => {
+        const mockOperation = { id: 1, cost: 10 };
+        const userId = 1;
+        const operand1 = 5;
+        const operand2 = 0;
+        (OperationModel.findByType as jest.Mock).mockResolvedValueOnce(mockOperation);
+        const result = await OperationService.divide(userId, operand1, operand2);
+
+        expect(result).toEqual({
+            error: 'Error division by zero',
         });
     });
 
-    describe('substract', () => {
-        it('should substract two numbers and update user balance', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue(mockUser);
+    it('should divide two numbers and return the result with updated user balance', async () => {
+        const mockOperation = { id: 1, cost: 10 };
+        const userId = 1;
+        const operand1 = 6;
+        const operand2 = 3;
 
-            const result = await OperationService.substract(1, 5, 3);
+        (OperationModel.findByType as jest.Mock).mockResolvedValueOnce(mockOperation);
+        (RecordModel.insert as jest.Mock).mockResolvedValueOnce(90);
 
-            expect(OperationModel.findByType).toHaveBeenCalledWith(OperationType.SUBSTRACTION);
-            expect(UserModel.getById).toHaveBeenCalledWith(1);
-            expect(RecordModel.insert).toHaveBeenCalledWith(1, 1, 10, 90, 2);
+        const result = await OperationService.divide(userId, operand1, operand2);
 
-            expect(result).toEqual({
-                data: {
-                    result: 2,
-                    user_balance: 90
-                }
-            });
+        expect(result).toEqual({
+            data: {
+            result: 2,
+            user_balance: 90,
+            }
         });
+        expect(OperationModel.findByType).toHaveBeenCalledWith('DIVISION');
+        expect(RecordModel.insert).toHaveBeenCalledWith(mockOperation.id, userId, mockOperation.cost, 2);
+    });
 
-        it('should throw an error if user balance is insufficient', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue({ ...mockUser, user_balance: 5 });
-            const result = await OperationService.divide(1, 5, 3);
-            expect(result.error).toBe('Err. Operation cost: 10. Your balance: 5');
+    it('should return an error when calculating the square root of a negative number', async () => {
+        const mockOperation = { id: 1, cost: 10 };
+
+        const userId = 1;
+        const operand1 = -4;
+        (OperationModel.findByType as jest.Mock).mockResolvedValueOnce(mockOperation);
+        const result = await OperationService.squareRoot(userId, operand1);
+
+        expect(result).toEqual({
+            error: 'Err. Square root of a negative number',
         });
     });
 
-    describe('multiply', () => {
-        it('should multiply two numbers and update user balance', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue(mockUser);
+    it('should calculate the square root of a number and return the result with updated user balance', async () => {
+        const mockOperation = { id: 1, cost: 10 };
+        const userId = 1;
+        const operand1 = 9;
 
-            const result = await OperationService.multiply(1, 5, 3);
+        (OperationModel.findByType as jest.Mock).mockResolvedValueOnce(mockOperation);
+        (RecordModel.insert as jest.Mock).mockResolvedValueOnce(90);
 
-            expect(OperationModel.findByType).toHaveBeenCalledWith(OperationType.MULTIPLICATION);
-            expect(UserModel.getById).toHaveBeenCalledWith(1);
-            expect(RecordModel.insert).toHaveBeenCalledWith(1, 1, 10, 90, 15);
+        const result = await OperationService.squareRoot(userId, operand1);
 
-            expect(result).toEqual({
-                data: {
-                    result: 15,
-                    user_balance: 90
-                }
-            });
+        expect(result).toEqual({
+            data: {
+            result: 3,
+            user_balance: 90,
+            }
         });
-
-        it('should throw an error if user balance is insufficient', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue({ ...mockUser, user_balance: 5 });
-
-            const result = await OperationService.divide(1, 5, 3);
-            expect(result.error).toBe('Err. Operation cost: 10. Your balance: 5');
-        });
+        expect(OperationModel.findByType).toHaveBeenCalledWith('SQUARE_ROOT');
+        expect(RecordModel.insert).toHaveBeenCalledWith(mockOperation.id, userId, mockOperation.cost, 3);
     });
 
-    describe('divide', () => {
-        it('should divide two numbers and update user balance', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue(mockUser);
+    it('should get a random string and return the result with updated user balance', async () => {
+        const mockOperation = { id: 1, cost: 10 };
+        const userId = 1;
+        const mockString = 'abc12345';
 
-            const result = await OperationService.divide(1, 6, 3);
+        (OperationModel.findByType as jest.Mock).mockResolvedValueOnce(mockOperation);
+        (axios.get as jest.Mock).mockResolvedValueOnce({ data: mockString });
+        (RecordModel.insert as jest.Mock).mockResolvedValueOnce(90);
 
-            expect(OperationModel.findByType).toHaveBeenCalledWith(OperationType.DIVISION);
-            expect(UserModel.getById).toHaveBeenCalledWith(1);
-            expect(RecordModel.insert).toHaveBeenCalledWith(1, 1, 10, 90, 2);
+        const result = await OperationService.randomString(userId);
 
-            expect(result).toEqual({
-                data: {
-                    result: 2,
-                    user_balance: 90
-                }
-            });
+        expect(result).toEqual({
+            data: {
+                result: mockString,
+                user_balance: 90,
+            }
         });
-
-        it('should return an error for division by zero', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue(mockUser);
-
-            const result = await OperationService.divide(1, 6, 0);
-
-            expect(result).toEqual({
-                error: 'Error division by zero'
-            });
-        });
-
-        it('should throw an error if user balance is insufficient', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue({ ...mockUser, user_balance: 5 });
-            const result = await OperationService.divide(1, 6, 3);
-            expect(result.error).toBe('Err. Operation cost: 10. Your balance: 5');
-        });
-    });
-
-    describe('squareRoot', () => {
-        it('should calculate the square root and update user balance', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue(mockUser);
-
-            const result = await OperationService.squareRoot(1, 16);
-
-            expect(OperationModel.findByType).toHaveBeenCalledWith(OperationType.SQUARE_ROOT);
-            expect(UserModel.getById).toHaveBeenCalledWith(1);
-            expect(RecordModel.insert).toHaveBeenCalledWith(1, 1, 10, 90, 4);
-
-            expect(result).toEqual({
-                data: {
-                    result: 4,
-                    user_balance: 90
-                }
-            });
-        });
-
-        it('should throw an error if user balance is insufficient', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue({ ...mockUser, user_balance: 5 });
-
-            const result = await OperationService.squareRoot(1, 16);
-            expect(result.error).toBe('Err. Operation cost: 10. Your balance: 5');
-        });
-    });
-
-    describe('randomString', () => {
-        it('should fetch a random string and update user balance', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue(mockUser);
-            (axios.get as jest.Mock).mockResolvedValue({ data: 'randomString' });
-
-            const result = await OperationService.randomString(1);
-
-            expect(OperationModel.findByType).toHaveBeenCalledWith(OperationType.RANDOM_STRING);
-            expect(UserModel.getById).toHaveBeenCalledWith(1);
-            expect(RecordModel.insert).toHaveBeenCalledWith(1, 1, 10, 90, 'randomString');
-
-            expect(result).toEqual({
-                data: {
-                    result: 'randomString',
-                    user_balance: 90
-                }
-            });
-        });
-
-        it('should throw an error if user balance is insufficient', async () => {
-            (OperationModel.findByType as jest.Mock).mockResolvedValue(mockOperation);
-            (UserModel.getById as jest.Mock).mockResolvedValue({ ...mockUser, user_balance: 5 });
-            const result = await OperationService.randomString(1);
-            expect(result.error).toBe('Err. Operation cost: 10. Your balance: 5');
-        });
+        expect(OperationModel.findByType).toHaveBeenCalledWith('RANDOM_STRING');
+        expect(axios.get).toHaveBeenCalledWith(process.env.URL_RANDOM_STR_SERVICE);
+        expect(RecordModel.insert).toHaveBeenCalledWith(mockOperation.id, userId, mockOperation.cost, mockString);
     });
 });

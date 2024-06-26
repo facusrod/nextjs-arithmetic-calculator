@@ -1,5 +1,7 @@
+import { useAuth } from '@/context/authcontext';
 import { UserAPI } from '@/network/api';
 import { Field, Form, Formik } from 'formik';
+import { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
 import * as Yup from 'yup';
@@ -10,11 +12,11 @@ const Spinner = () => (
   </div>
 );
 
-const Login = () => {
+const Login: NextPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
-  //const [registerError, setRegisterError] = useState('');
   const [isRegister, setIsRegister] = useState(false);
+  const { login } = useAuth();
   const router = useRouter();
 
   const handleLogin = (email: string, password: string) => {
@@ -25,6 +27,7 @@ const Login = () => {
         password,
       ).then(data => {
         localStorage.setItem('token', data.token)
+        login({ username: email }); // username is the email for simplicity
         router.push('/');
       }).catch(err => {
         setLoginError(err.response.data.message);
@@ -36,6 +39,7 @@ const Login = () => {
         password,
       ).then(data => {
         localStorage.setItem('token', data.token)
+        login({ username: email });
         router.push('/');
       }).catch(err => {
         setLoginError(err.response.data.message);

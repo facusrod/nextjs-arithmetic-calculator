@@ -1,6 +1,5 @@
-import pool from '../db';
-import UserModel from './user';
-
+import pool, { query as queryDb } from '../db';
+import { User } from './user';
 export interface Record {
     id: number,
     operation_id: number,
@@ -12,20 +11,44 @@ export interface Record {
     deleted: boolean;
 }
 
+export class TransactionError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'TransactionError';
+    }
+}
+
 class RecordModel {
-    static async insert(operationId: number, userId: number, amount: number, updateBalance: number, result: unknown): Promise<void> {
+    static async insert(operationId: number, userId: number, amount: number, operationResult: unknown): Promise<number> {
         try {
             await pool.query('BEGIN');
+
+            const getUserQuery = "SELECT id, username, status, user_balance FROM users WHERE id = $1 AND status = 'active' FOR UPDATE";
+            const results = await pool.query(getUserQuery, [userId]);
+            
+            const user = results.rows[0] as User
+            if (user.user_balance <= 0) {
+                throw new TransactionError('Err. User balance must be greater than 0')
+            }
+            const updatedBalance = user.user_balance - amount;
+            if (updatedBalance < 0) {
+                throw new TransactionError(`Err. Operation cost: ${amount}. Your balance: ${user.user_balance}`);
+            }
+
             // Now update the user, then insert the new operation
-            await UserModel.updateBalance(updateBalance, userId);
+            const updateBalanceQuery = 'UPDATE users SET user_balance = $1 WHERE id = $2';
+            await pool.query(updateBalanceQuery, [updatedBalance, userId])
+
             const query = `
                 INSERT INTO record (operation_id, user_id, amount, user_balance, operation_response, date)
                 VALUES ($1, $2, $3, $4, $5, $6)
             `;
             const dateNow = new Date().toISOString();
-            const values = [operationId, userId, amount, updateBalance, result, dateNow];
+            const values = [operationId, userId, amount, updatedBalance, operationResult, dateNow];
             await pool.query(query, values);
             await pool.query('COMMIT');
+
+            return updatedBalance;
         } catch (err) {
             await pool.query('ROLLBACK');
             throw err;
@@ -56,13 +79,11 @@ class RecordModel {
             ORDER BY r.date DESC 
             LIMIT $2 OFFSET $3
         `;
-        const countResult = await pool.query(countQuery, [userId]);
-        const totalRows = parseInt(countResult.rows[0].total, 10);
+        const countResult = await queryDb(countQuery, [userId]);
+        const totalRows = parseInt((countResult[0] as any).total, 10);
 
         const queryParams = [userId, pageSize, offset];
-        const recordsResult = await pool.query(recordsQuery, queryParams);
-        const records = recordsResult.rows as Record[];
-
+        const records = await queryDb<Record>(recordsQuery, queryParams);
         return [
             records,
             totalRows
@@ -73,7 +94,7 @@ class RecordModel {
         const query = 'UPDATE record SET deleted = $1 WHERE user_id = $2 AND id = $3';
         const dateNow = new Date().toISOString();
         const values = [dateNow, userId, recordId];
-        await pool.query(query, values);
+        await queryDb(query, values);
     }
 }
 

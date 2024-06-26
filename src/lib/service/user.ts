@@ -30,6 +30,16 @@ class UserService {
             data: user
         }
     }
+
+    static async restartBalanceByUserId(userId: number): Promise<IResult<number>> {
+        const user = await UserModel.getById(userId);
+        if (!user) { return { error: 'User not found' } }
+        const newBalance: number = parseInt(process.env.DEFAULT_USER_BALANCE || '10');
+        await UserModel.updateBalance(newBalance, userId)
+        return {
+            data: newBalance
+        }
+    }
 }
 
 export default UserService;

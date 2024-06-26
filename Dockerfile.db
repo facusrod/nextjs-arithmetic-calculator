@@ -1,0 +1,8 @@
+# Usa la imagen oficial de PostgreSQL
+FROM postgres:13
+
+# Añadir un script de inicialización (opcional)
+COPY /src/lib/schema.sql /docker-entrypoint-initdb.d/
+
+# Exponer el puerto de PostgreSQL
+EXPOSE 5432

@@ -1,4 +1,4 @@
-import pool from '../db';
+import { query } from '../db';
 import { OperationType } from '../service/operation';
 import OperationModel, { Operation } from './operation';
 
@@ -21,22 +21,22 @@ describe('OperationModel', () => {
         type: 'ADDITION',
         cost: 10,
       };
-      (pool.query as jest.Mock).mockResolvedValueOnce({ rows: [mockOperation] });
+      (query as jest.Mock).mockResolvedValueOnce([mockOperation]);
 
       const operation = await OperationModel.findByType(OperationType.ADDITION);
       expect(operation).toEqual(mockOperation);
-      expect(pool.query).toHaveBeenCalledWith(
+      expect(query).toHaveBeenCalledWith(
         'SELECT id, type, cost FROM operation WHERE type = $1',
         ['ADDITION']
       );
     });
 
     it('should return undefined if operation type does not exist', async () => {
-      (pool.query as jest.Mock).mockResolvedValueOnce({ rows: [] });
+      (query as jest.Mock).mockResolvedValueOnce({ rows: [] });
 
       const operation = await OperationModel.findByType(OperationType.MULTIPLICATION);
       expect(operation).toBeUndefined();
-      expect(pool.query).toHaveBeenCalledWith(
+      expect(query).toHaveBeenCalledWith(
         'SELECT id, type, cost FROM operation WHERE type = $1',
         ['MULTIPLICATION']
       );
@@ -44,10 +44,10 @@ describe('OperationModel', () => {
 
     it('should throw an error if the query fails', async () => {
       const error = new Error('Database error');
-      (pool.query as jest.Mock).mockRejectedValueOnce(error);
+      (query as jest.Mock).mockRejectedValueOnce(error);
 
       await expect(OperationModel.findByType(OperationType.SQUARE_ROOT)).rejects.toThrow('Database error');
-      expect(pool.query).toHaveBeenCalledWith(
+      expect(query).toHaveBeenCalledWith(
         'SELECT id, type, cost FROM operation WHERE type = $1',
         ['SQUARE_ROOT']
       );

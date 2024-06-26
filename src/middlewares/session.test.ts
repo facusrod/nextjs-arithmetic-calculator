@@ -6,7 +6,7 @@ jest.mock('jsonwebtoken');
 
 describe('session middleware', () => {
   let mockHandler: jest.Mock;
-  let mockReq: Partial<NextApiRequest> & { userId?: number };
+  let mockReq: Partial<NextApiRequest> & { userId: number };
   let mockRes: Partial<NextApiResponse>;
   let mockJson: jest.Mock;
   let mockStatus: jest.Mock;
@@ -20,7 +20,8 @@ describe('session middleware', () => {
     mockReq = {
       headers: {
         authorization: 'Bearer validtoken'
-      }
+      },
+      userId: 2
     };
     mockRes = {
       status: mockStatus
@@ -31,7 +32,7 @@ describe('session middleware', () => {
   it('should return 401 if no token is provided', async () => {
     mockReq.headers = {};
 
-    await session(mockHandler)(mockReq as NextApiRequest, mockRes as NextApiResponse);
+    await session(mockHandler)(mockReq as NextApiRequest & { userId: number }, mockRes as NextApiResponse);
 
     expect(mockStatus).toHaveBeenCalledWith(401);
     expect(mockJson).toHaveBeenCalledWith({ message: 'Unauthorized' });
@@ -42,7 +43,7 @@ describe('session middleware', () => {
       throw new Error('Invalid token');
     });
 
-    await session(mockHandler)(mockReq as NextApiRequest, mockRes as NextApiResponse);
+    await session(mockHandler)(mockReq as NextApiRequest & { userId: number }, mockRes as NextApiResponse);
 
     expect(mockStatus).toHaveBeenCalledWith(401);
     expect(mockJson).toHaveBeenCalledWith({ message: 'Unauthorized' });
@@ -56,7 +57,7 @@ describe('session middleware', () => {
     };
     (jwt.verify as jest.Mock).mockReturnValue(expiredToken);
 
-    await session(mockHandler)(mockReq as NextApiRequest, mockRes as NextApiResponse);
+    await session(mockHandler)(mockReq as NextApiRequest & { userId: number }, mockRes as NextApiResponse);
 
     expect(mockStatus).toHaveBeenCalledWith(401);
     expect(mockJson).toHaveBeenCalledWith({ message: 'Token expired' });
@@ -70,7 +71,7 @@ describe('session middleware', () => {
     };
     (jwt.verify as jest.Mock).mockReturnValue(validToken);
 
-    await session(mockHandler)(mockReq as NextApiRequest, mockRes as NextApiResponse);
+    await session(mockHandler)(mockReq as NextApiRequest & { userId: number }, mockRes as NextApiResponse);
 
     expect(mockHandler).toHaveBeenCalled();
     expect(mockReq.userId).toBe(validToken.userId);

@@ -1,5 +1,7 @@
 import { Pool } from 'pg';
 
+const dbRequireSSL = process.env.DB_REQUIRE_SSL === 'true';
+
 const pool = new Pool({
   max: 40,
   host: process.env.DB_HOST,
@@ -7,7 +9,7 @@ const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  ssl: true
+  ssl: dbRequireSSL,
 });
 
 export async function query<T>(sql: string, values: any[]): Promise<T[]> {

@@ -1,16 +1,16 @@
 import type { AppProps } from 'next/app';
 import '../../styles/globals.css';
 import Layout from '@/components/layout';
+import { AuthProvider } from '@/context/authcontext';
 
 function MyApp({ Component, pageProps }: AppProps) {
-  const shouldUseLayout = Component.name !== 'Login';
-  return shouldUseLayout ? (
-    <Layout>
+  return (
+    <AuthProvider>
+      <Layout>
         <Component {...pageProps} />
-    </Layout>
-  ) : (
-      <Component {...pageProps} />
-  );
+      </Layout>
+    </AuthProvider>
+  )
 }
 
 export default MyApp;

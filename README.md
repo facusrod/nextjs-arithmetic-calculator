@@ -24,7 +24,6 @@ You can view the live version of the application here: https://nextjs-arithmetic
 - **State Management**: Consider integrating context or Redux for efficient state management across components.
 - **OAuth Integration**: Explore integrating OAuth-based authentication for seamless user authentication via third-party providers.
 - **Server Framework for AWS**: Evaluate using server frameworks like Express.js or Nest.js for backend APIs, facilitating deployment on AWS services.
-- **Containerization**: Dockerize PostgreSQL to streamline local development setup and testing.
 - **Dependency Injection**: Evaluate using Dependency Injection (DI) to reduced coupling, enhance testability and maintainability of service layers.
 - **ORM Implementation**: Use an ORM (Object-Relational Mapping) like TypeORM or Sequelize to mitigate SQL injection vulnerabilities and simplify database interactions.
 
